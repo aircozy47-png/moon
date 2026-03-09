@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>모온</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@200;300;400&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:         #09090E;
+    --text-main:  #D6D2CA;
+    --text-sub:   #9A9890;
+    --text-dim:   #5A5C62;
+    --border:     #2C2F38;
+  }
+
+  html, body {
+    width: 100%; height: 100%;
+    background: var(--bg);
+    font-family: 'Noto Serif KR', serif;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  /* ── GRAIN ── */
+  body::after {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+    pointer-events: none; z-index: 999;
+  }
+
+  /* ── STAGES ── */
+  .stage {
+    position: fixed; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    opacity: 0; pointer-events: none;
+    transition: opacity 2s ease;
+  }
+  .stage.active { opacity: 1; pointer-events: all; }
+
+  /* ── WAITING ── */
+  #stage-waiting .label {
+    font-size: 11px; letter-spacing: 0.38em; font-weight: 200;
+    color: var(--text-dim); margin-bottom: 44px;
+  }
+  #stage-waiting .msg {
+    font-size: 15px; font-weight: 200; letter-spacing: 0.14em;
+    color: var(--text-sub); line-height: 2.8; text-align: center;
+  }
+  #stage-waiting .clock {
+    font-size: 12px; letter-spacing: 0.24em; color: var(--text-dim);
+    margin-top: 52px; font-weight: 200;
+  }
+
+  /* ── READY ── */
+  #stage-ready .year-label {
+    font-size: 10px; letter-spacing: 0.4em; font-weight: 200;
+    color: var(--text-dim); margin-bottom: 56px;
+  }
+  #btn-start {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-main);
+    font-family: 'Noto Serif KR', serif;
+    font-size: 14px; font-weight: 300;
+    letter-spacing: 0.22em;
+    padding: 20px 48px;
+    cursor: pointer;
+    transition: border-color 0.5s ease, color 0.5s ease;
+    outline: none;
+  }
+  #btn-start:hover { border-color: var(--text-sub); color: #EAE6DE; }
+  #stage-ready .sub-label {
+    font-size: 12px; letter-spacing: 0.22em; font-weight: 200;
+    color: var(--text-sub); margin-top: 48px;
+  }
+
+  /* ── PRESENCE TEXT ── */
+  #presence-text {
+    position: fixed; top: 40%; left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 15px; font-weight: 200;
+    letter-spacing: 0.14em; line-height: 2.8;
+    text-align: center; color: var(--text-main);
+    opacity: 0; transition: opacity 3s ease;
+    pointer-events: none; width: 300px;
+  }
+  #presence-text.visible { opacity: 1; }
+
+  /* ── EMBER (모닥불) ── */
+  #ember-wrap {
+    position: fixed;
+    bottom: 72px; left: 50%;
+    transform: translateX(-50%);
+    width: 120px; height: 130px;
+    opacity: 0; transition: opacity 2.5s ease;
+    pointer-events: none;
+  }
+  #ember-wrap.visible { opacity: 1; }
+  #ember-canvas { display: block; }
+
+  /* ── ENDING ── */
+  #stage-ending .identity-line {
+    font-size: 11px; font-weight: 200;
+    letter-spacing: 0.32em; color: var(--text-dim);
+    text-align: center; margin-bottom: 24px;
+  }
+  #stage-ending .identity-main {
+    font-size: 18px; font-weight: 200;
+    letter-spacing: 0.06em; color: var(--text-main);
+    text-align: center; line-height: 2.0;
+  }
+  #stage-ending .identity-sub {
+    font-size: 13px; font-weight: 200;
+    letter-spacing: 0.16em; color: var(--text-sub);
+    text-align: center; margin-top: 28px; line-height: 2.6;
+  }
+  #btn-again {
+    margin-top: 60px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-sub);
+    font-family: 'Noto Serif KR', serif;
+    font-size: 12px; font-weight: 200;
+    letter-spacing: 0.22em;
+    padding: 14px 36px;
+    cursor: pointer;
+    outline: none;
+    opacity: 0;
+    transition: opacity 2s ease, border-color 0.5s, color 0.5s;
+  }
+  #btn-again.visible { opacity: 1; }
+  #btn-again:hover { border-color: var(--text-sub); color: var(--text-main); }
+
+  /* ── INTERRUPTED ── */
+  #stage-interrupted .int-msg {
+    font-size: 15px; font-weight: 200;
+    letter-spacing: 0.14em; color: var(--text-sub);
+    text-align: center; line-height: 2.8;
+  }
+  #btn-rejoin {
+    margin-top: 52px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-sub);
+    font-family: 'Noto Serif KR', serif;
+    font-size: 12px; font-weight: 200;
+    letter-spacing: 0.22em;
+    padding: 14px 36px;
+    cursor: pointer; outline: none;
+    transition: border-color 0.5s, color 0.5s;
+  }
+  #btn-rejoin:hover { border-color: var(--text-sub); color: var(--text-main); }
+
+  /* ── CLOSED ── */
+  #stage-closed .closed-msg {
+    font-size: 15px; font-weight: 200;
+    letter-spacing: 0.14em; color: var(--text-sub);
+    text-align: center; line-height: 2.8;
+  }
+  #stage-closed .closed-time {
+    font-size: 10px; letter-spacing: 0.3em;
+    color: var(--text-dim); margin-top: 44px; font-weight: 200;
+  }
+
+  /* ── DEV ── */
+  #dev-bar {
+    position: fixed; top: 14px; right: 14px;
+    display: flex; gap: 8px; z-index: 9999;
+  }
+  .dev-btn {
+    font-size: 9px; letter-spacing: 0.12em;
+    color: var(--text-dim); opacity: 0.4;
+    cursor: pointer; border: 1px solid #1e2026;
+    background: none; padding: 4px 9px;
+    font-family: monospace;
+  }
+  .dev-btn:hover { opacity: 0.8; }
+</style>
+</head>
+<body>
+
+<!-- DEV BAR -->
+<div id="dev-bar">
+  <button class="dev-btn" onclick="showStage('ready')">ready</button>
+  <button class="dev-btn" onclick="beginExperience()">experience</button>
+  <button class="dev-btn" onclick="triggerEnding()">ending</button>
+  <button class="dev-btn" onclick="showStage('interrupted')">interrupt</button>
+</div>
+
+<!-- WAITING -->
+<div class="stage active" id="stage-waiting">
+  <div class="label">매일 밤 11시</div>
+  <div class="msg">
+    곧 시작됩니다<br>
+    <span style="font-size:12px; letter-spacing:0.18em; color:var(--text-dim);">아직 시간이 되지 않았습니다</span>
+  </div>
+  <div class="clock" id="live-clock"></div>
+</div>
+
+<!-- READY -->
+<div class="stage" id="stage-ready">
+  <div class="year-label">2026 · 모온</div>
+  <button id="btn-start">같은 90초 시작하기</button>
+  <div class="sub-label">지금 이 순간, 함께</div>
+</div>
+
+<!-- EXPERIENCE (텍스트·불꽃은 fixed overlay) -->
+<div class="stage" id="stage-experience"></div>
+
+<!-- ENDING -->
+<div class="stage" id="stage-ending">
+  <div class="identity-line">오늘 밤</div>
+  <div class="identity-main">당신은 고요히<br>존재했습니다</div>
+  <div class="identity-sub">누군가도 같은 90초를<br>함께 보냈습니다</div>
+  <button id="btn-again" onclick="returnToReady()">다시 앉기</button>
+</div>
+
+<!-- INTERRUPTED -->
+<div class="stage" id="stage-interrupted">
+  <div class="int-msg">
+    자리를 잠시 비웠군요<br>
+    <span style="font-size:12px; letter-spacing:0.18em; color:var(--text-dim);">모닥불은 꺼지지 않았습니다</span>
+  </div>
+  <button id="btn-rejoin" onclick="returnToReady()">다시 돌아가기</button>
+</div>
+
+<!-- CLOSED -->
+<div class="stage" id="stage-closed">
+  <div class="closed-msg">
+    오늘의 모닥불은 꺼졌습니다<br>
+    <span style="font-size:12px; letter-spacing:0.18em; color:var(--text-dim);">내일 밤 11시에 다시 찾아오세요</span>
+  </div>
+  <div class="closed-time">모온 · 매일 23:00</div>
+</div>
+
+<!-- PRESENCE TEXT overlay -->
+<div id="presence-text">
+  지금, 같은 90초를<br>보내고 있는<br>사람들이 있습니다
+</div>
+
+<!-- EMBER overlay -->
+<div id="ember-wrap">
+  <canvas id="ember-canvas" width="120" height="130"></canvas>
+</div>
+
+<script>
+// ── CONFIG ──
+const OPEN_HOUR = 23, OPEN_MIN = 0;
+const PRE_MIN = -10, CLOSE_MIN = 5;
+const DURATION_MS = 90000;
+const DEV_MODE = true;
+
+// ── STATE ──
+let currentStage = 'waiting';
+let audioCtx = null;
+let emberAnimId = null;
+let experienceAborted = false;
+let returnTimers = [];
+
+// ── UTILS ──
+const getNow = () => { const d=new Date(); return {h:d.getHours(),m:d.getMinutes(),s:d.getSeconds()}; };
+const pad = n => String(n).padStart(2,'0');
+const clearRT = () => { returnTimers.forEach(clearTimeout); returnTimers=[]; };
+
+// ── TIME GATE ──
+function getWindowState() {
+  if (DEV_MODE) return 'ready';
+  const {h,m} = getNow();
+  const total = h*60+m, open = OPEN_HOUR*60+OPEN_MIN;
+  if (total < open+PRE_MIN)   return 'waiting';
+  if (total < open)           return 'pre';
+  if (total < open+CLOSE_MIN) return 'ready';
+  return 'closed';
+}
+
+// ── STAGE ──
+function showStage(id) {
+  document.querySelectorAll('.stage').forEach(s => s.classList.remove('active'));
+  currentStage = id;
+  requestAnimationFrame(() => {
+    const el = document.getElementById('stage-'+id);
+    if (el) el.classList.add('active');
+  });
+}
+
+// ── CLOCK ──
+setInterval(() => {
+  const {h,m,s} = getNow();
+  const el = document.getElementById('live-clock');
+  if (el) el.textContent = `${pad(h)} : ${pad(m)} : ${pad(s)}`;
+}, 1000);
+
+// ── EMBER PARTICLES ──
+const CW=120, CH=130, CX=60, BASE_Y=108;
+const particles = [];
+
+function spawnParticle(initial) {
+  const life = 0.35 + Math.random()*0.65;
+  particles.push({
+    x: CX + (Math.random()-0.5)*16,
+    y: initial ? BASE_Y - Math.random()*60 : BASE_Y + Math.random()*4,
+    vx: (Math.random()-0.5)*0.65,
+    vy: -(0.45 + Math.random()*1.05),
+    life: initial ? Math.random() : 0,
+    maxLife: life,
+    size: 1.4 + Math.random()*3.2,
+    type: Math.random() < 0.13 ? 'ember' : 'flame',
+  });
+}
+
+function initParticles() {
+  particles.length = 0;
+  for (let i=0; i<42; i++) spawnParticle(true);
+}
+
+function drawFrame(ctx, now) {
+  ctx.clearRect(0, 0, CW, CH);
+
+  // base glow pool
+  const bg = ctx.createRadialGradient(CX, BASE_Y, 0, CX, BASE_Y, 30);
+  bg.addColorStop(0,   'rgba(230,130,45,0.20)');
+  bg.addColorStop(0.5, 'rgba(180,70,18,0.09)');
+  bg.addColorStop(1,   'rgba(90,25,6,0)');
+  ctx.fillStyle = bg;
+  ctx.beginPath(); ctx.ellipse(CX, BASE_Y, 30, 11, 0, 0, Math.PI*2); ctx.fill();
+
+  for (let i=particles.length-1; i>=0; i--) {
+    const p = particles[i];
+    p.life += 0.011 + Math.random()*0.007;
+    p.x += p.vx + Math.sin(now*0.0019 + i*0.7)*0.16;
+    p.y += p.vy;
+    p.vx += (Math.random()-0.5)*0.07;
+
+    if (p.life >= 1) { particles.splice(i,1); spawnParticle(false); continue; }
+
+    const t = p.life;
+    const alpha = t < 0.25 ? t/0.25 : 1-(t-0.25)/0.75;
+    const sz = p.size * (1 - t*0.45);
+
+    if (p.type === 'ember') {
+      const r = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, sz*2.2);
+      r.addColorStop(0,   `rgba(255,225,150,${(alpha*0.92).toFixed(2)})`);
+      r.addColorStop(0.5, `rgba(240,145,40,${(alpha*0.38).toFixed(2)})`);
+      r.addColorStop(1,   'rgba(0,0,0,0)');
+      ctx.fillStyle = r;
+      ctx.beginPath(); ctx.arc(p.x, p.y, sz*2.2, 0, Math.PI*2); ctx.fill();
+    } else {
+      const ht = sz*(2.0 - t*1.1);
+      const cr = Math.floor(255 - t*40);
+      const cg = Math.floor(195 - t*145);
+      const cb = Math.floor(75  - t*65);
+      const g = ctx.createRadialGradient(p.x, p.y+ht*0.1, 0, p.x, p.y+ht*0.35, sz+ht);
+      g.addColorStop(0,   `rgba(${cr},${cg},${cb},${(alpha*0.78).toFixed(2)})`);
+      g.addColorStop(0.55,`rgba(200,78,18,${(alpha*0.32).toFixed(2)})`);
+      g.addColorStop(1,   'rgba(0,0,0,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.ellipse(p.x, p.y+ht*0.25, sz*0.65, ht, 0, 0, Math.PI*2);
+      ctx.fill();
+    }
+  }
+}
+
+function startEmberAnim() {
+  const canvas = document.getElementById('ember-canvas');
+  const ctx = canvas.getContext('2d');
+  initParticles();
+  function loop(now) { drawFrame(ctx, now); emberAnimId = requestAnimationFrame(loop); }
+  emberAnimId = requestAnimationFrame(loop);
+}
+
+function stopEmberAnim() {
+  if (emberAnimId) { cancelAnimationFrame(emberAnimId); emberAnimId=null; }
+  const c = document.getElementById('ember-canvas');
+  if (c) c.getContext('2d').clearRect(0,0,CW,CH);
+}
+
+// ── AUDIO ──
+function createAmbientAudio() {
+  audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+
+  function pinkNoise(dur) {
+    const n=audioCtx.sampleRate*dur, buf=audioCtx.createBuffer(2,n,audioCtx.sampleRate);
+    for(let ch=0;ch<2;ch++){
+      const d=buf.getChannelData(ch); let b0=0,b1=0,b2=0,b3=0,b4=0,b5=0,b6=0;
+      for(let i=0;i<n;i++){
+        const w=Math.random()*2-1;
+        b0=0.99886*b0+w*0.0555179; b1=0.99332*b1+w*0.0750759;
+        b2=0.96900*b2+w*0.1538520; b3=0.86650*b3+w*0.3104856;
+        b4=0.55000*b4+w*0.5329522; b5=-0.7616*b5-w*0.0168980;
+        d[i]=(b0+b1+b2+b3+b4+b5+b6+w*0.5362)*0.1; b6=w*0.115926;
+      }
+    }
+    return buf;
+  }
+
+  // room tone
+  const osc=audioCtx.createOscillator(), og=audioCtx.createGain(), of=audioCtx.createBiquadFilter();
+  osc.type='sine'; osc.frequency.value=38; of.type='lowpass'; of.frequency.value=70; og.gain.value=0.015;
+  osc.connect(of); of.connect(og); og.connect(audioCtx.destination); osc.start();
+
+  // pink noise
+  const ns=audioCtx.createBufferSource(), ng=audioCtx.createGain(), nf=audioCtx.createBiquadFilter();
+  ns.buffer=pinkNoise(12); ns.loop=true; nf.type='lowpass'; nf.frequency.value=750; ng.gain.value=0;
+  ns.connect(nf); nf.connect(ng); ng.connect(audioCtx.destination); ns.start();
+  ng.gain.linearRampToValueAtTime(0.08, audioCtx.currentTime+3);
+
+  function rustle(delay) {
+    setTimeout(()=>{
+      if(!audioCtx||audioCtx.state==='closed') return;
+      const n=Math.floor(audioCtx.sampleRate*0.28), b=audioCtx.createBuffer(1,n,audioCtx.sampleRate);
+      const d=b.getChannelData(0);
+      for(let i=0;i<n;i++) d[i]=(Math.random()*2-1)*Math.sin(Math.PI*i/n)*0.18;
+      const s=audioCtx.createBufferSource(), g=audioCtx.createGain(), f=audioCtx.createBiquadFilter();
+      s.buffer=b; f.type='bandpass'; f.frequency.value=2800+Math.random()*900; f.Q.value=0.9;
+      g.gain.value=0.035+Math.random()*0.025;
+      s.connect(f); f.connect(g); g.connect(audioCtx.destination); s.start();
+    }, delay*1000);
+  }
+
+  function breath(delay) {
+    setTimeout(()=>{
+      if(!audioCtx||audioCtx.state==='closed') return;
+      const dur=1.9, n=Math.floor(audioCtx.sampleRate*dur), b=audioCtx.createBuffer(1,n,audioCtx.sampleRate);
+      const d=b.getChannelData(0);
+      for(let i=0;i<n;i++){
+        const t=i/n; d[i]=(Math.random()*2-1)*Math.sin(Math.PI*t)*Math.sin(Math.PI*t*2.2)*0.11;
+      }
+      const s=audioCtx.createBufferSource(), g=audioCtx.createGain(), f=audioCtx.createBiquadFilter();
+      s.buffer=b; f.type='bandpass'; f.frequency.value=580; f.Q.value=0.5; g.gain.value=0.065;
+      s.connect(f); f.connect(g); g.connect(audioCtx.destination); s.start();
+    }, delay*1000);
+  }
+
+  [7,24,47,69,83].forEach(t=>rustle(t));
+  [15,39,61].forEach(t=>breath(t));
+}
+
+function fadeOutAudio() {
+  if (!audioCtx) return;
+  try {
+    setTimeout(()=>{ try{audioCtx.close();}catch(e){} audioCtx=null; }, 3500);
+  } catch(e) { audioCtx=null; }
+}
+
+// ── EXPERIENCE ──
+function beginExperience() {
+  experienceAborted = false;
+  createAmbientAudio();
+  showStage('experience');
+
+  document.getElementById('ember-wrap').classList.add('visible');
+  startEmberAnim();
+
+  setTimeout(()=>{
+    if (!experienceAborted)
+      document.getElementById('presence-text').classList.add('visible');
+  }, 2400);
+
+  const t = setTimeout(()=>{ if(!experienceAborted) triggerEnding(); }, DURATION_MS+2400);
+  returnTimers.push(t);
+}
+
+function triggerEnding() {
+  experienceAborted = true;
+  clearRT();
+
+  const wrap = document.getElementById('ember-wrap');
+  wrap.style.transition = 'opacity 3s ease';
+  wrap.style.opacity = '0';
+  document.getElementById('presence-text').classList.remove('visible');
+
+  setTimeout(()=>{
+    stopEmberAnim();
+    wrap.classList.remove('visible');
+    wrap.style.opacity = '';
+    wrap.style.transition = '';
+    showStage('ending');
+    // 버튼: 16초 후 등장
+    const t = setTimeout(()=>{
+      document.getElementById('btn-again').classList.add('visible');
+    }, 16000);
+    returnTimers.push(t);
+  }, 3200);
+
+  fadeOutAudio();
+}
+
+// ── VISIBILITY (폰 꺼짐 / 백그라운드) ──
+document.addEventListener('visibilitychange', ()=>{
+  if (document.hidden && currentStage === 'experience') {
+    experienceAborted = true;
+    clearRT();
+    fadeOutAudio();
+    stopEmberAnim();
+    document.getElementById('ember-wrap').classList.remove('visible');
+    document.getElementById('presence-text').classList.remove('visible');
+    setTimeout(()=> showStage('interrupted'), 500);
+  }
+});
+
+// ── RETURN ──
+function returnToReady() {
+  clearRT();
+  stopEmberAnim();
+  document.getElementById('ember-wrap').classList.remove('visible');
+  document.getElementById('presence-text').classList.remove('visible');
+  document.getElementById('btn-again').classList.remove('visible');
+  experienceAborted = false;
+  audioCtx = null;
+  showStage('ready');
+}
+
+// ── EVENTS ──
+document.getElementById('btn-start').addEventListener('click', beginExperience);
+
+// ── INIT ──
+function init() {
+  const s = getWindowState();
+  if (s==='waiting'||s==='pre') showStage('waiting');
+  else if (s==='ready') showStage('ready');
+  else showStage('closed');
+}
+
+if (!DEV_MODE) {
+  setInterval(()=>{
+    const s=getWindowState();
+    if(s==='ready'&&currentStage==='waiting') showStage('ready');
+    if(s==='closed'&&['waiting','ready'].includes(currentStage)) showStage('closed');
+  }, 30000);
+}
+
+init();
+</script>
+</body>
+</html>
